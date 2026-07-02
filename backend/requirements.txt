@@ -1,0 +1,32 @@
+# Web framework
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20
+
+# Database
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+alembic==1.14.0
+
+# Validation & settings
+pydantic==2.10.3
+pydantic-settings==2.7.0
+
+# Auth (JWT validation from Keycloak)
+python-jose[cryptography]==3.3.0
+httpx==0.28.1
+
+# Rate limiting
+slowapi==0.1.9
+
+# Task queue
+celery[redis]==5.4.0
+redis==5.2.1
+flower==2.0.1
+
+# Object storage
+minio==7.2.12
+
+# Utilities
+python-dotenv==1.0.1
+gunicorn==23.0.0

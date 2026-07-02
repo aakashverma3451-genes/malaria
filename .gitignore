@@ -1,1 +1,95 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+.venv/
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+.eggs/
+pip-wheel-metadata/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.log
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Node / Frontend
+node_modules/
+.next/
+out/
+.vercel/
+*.tsbuildinfo
+next-env.d.ts
+
+# Genomics (large binaries — never commit these)
+*.bam
+*.bai
+*.cram
+*.crai
+*.fastq
+*.fastq.gz
+*.fq
+*.fq.gz
+*.vcf
+*.vcf.gz
+*.g.vcf.gz
+*.bcf
+*.fasta
+*.fa
+*.fai
+*.gz
+reference-data/*.fasta
+reference-data/*.fa
+reference-data/*.fai
+reference-data/*.dict
+reference-data/*.amb
+reference-data/*.ann
+reference-data/*.bwt
+reference-data/*.pac
+reference-data/*.sa
+
+# Nextflow
+.nextflow/
+.nextflow.log*
+work/
+results/
+
+# Databases
+*.sqlite3
+db.sqlite3
+*.db
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+*.swp
+*.swo
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Secrets
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Claude Code
 .claude/
