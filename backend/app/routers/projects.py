@@ -52,7 +52,7 @@ async def update_project(
     return project
 
 
-@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_project(project_id: uuid.UUID, token: CurrentToken, db: DB) -> None:
     project = await _get_or_404(project_id, db)
     _check_access(project, token, require_owner=True)

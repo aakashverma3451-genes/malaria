@@ -4,6 +4,7 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.dependencies import CurrentToken, DB, RequireAdmin
 from app.models.user import User, UserProfile
@@ -15,7 +16,7 @@ router = APIRouter(prefix="/api/v1/users", tags=["users"])
 @router.get("/me", response_model=UserSchema)
 async def get_me(token: CurrentToken, db: DB) -> User:
     result = await db.execute(
-        select(User).where(User.keycloak_id == token.sub)
+        select(User).options(selectinload(User.profile)).where(User.keycloak_id == token.sub)
     )
     user = result.scalar_one_or_none()
     if user is None:
@@ -29,13 +30,15 @@ async def get_me(token: CurrentToken, db: DB) -> User:
         await db.flush()
         db.add(UserProfile(user_id=user.id))
         await db.commit()
-        await db.refresh(user)
+        await db.refresh(user, attribute_names=["profile"])
     return user
 
 
 @router.put("/me", response_model=UserSchema)
 async def update_me(token: CurrentToken, db: DB, body: UserUpdateSchema) -> User:
-    result = await db.execute(select(User).where(User.keycloak_id == token.sub))
+    result = await db.execute(
+        select(User).options(selectinload(User.profile)).where(User.keycloak_id == token.sub)
+    )
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
@@ -48,11 +51,11 @@ async def update_me(token: CurrentToken, db: DB, body: UserUpdateSchema) -> User
         user.profile.institution = body.institution
 
     await db.commit()
-    await db.refresh(user)
+    await db.refresh(user, attribute_names=["profile"])
     return user
 
 
 @router.get("", response_model=list[UserSchema])
 async def list_users(_: RequireAdmin, db: DB) -> list[User]:
-    result = await db.execute(select(User).order_by(User.email))
+    result = await db.execute(select(User).options(selectinload(User.profile)).order_by(User.email))
     return list(result.scalars().all())

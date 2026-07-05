@@ -43,7 +43,7 @@ async def get_sample(sample_id: uuid.UUID, token: CurrentToken, db: DB) -> Sampl
     return sample
 
 
-@router.delete("/{sample_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{sample_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_sample(sample_id: uuid.UUID, _: CurrentToken, db: DB) -> None:
     sample = await _get_or_404(sample_id, db)
     await db.delete(sample)

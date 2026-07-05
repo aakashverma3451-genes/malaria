@@ -73,6 +73,10 @@ results/
 db.sqlite3
 *.db
 
+# Celery
+celerybeat-schedule
+celerybeat-schedule.*
+
 # macOS
 .DS_Store
 .AppleDouble
@@ -93,3 +97,4 @@ db.sqlite3
 
 # Claude Code
 .claude/
+claude/

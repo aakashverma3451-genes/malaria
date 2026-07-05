@@ -72,7 +72,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/realms/master || exit 1"]
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/8080' 2>/dev/null"]
       interval: 30s
       timeout: 10s
       retries: 15
@@ -118,6 +118,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: dev
     container_name: malaria_frontend
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
@@ -126,6 +127,7 @@ services:
       KEYCLOAK_ID: ${KEYCLOAK_WEB_CLIENT_ID:-malaria-web}
       KEYCLOAK_SECRET: ${KEYCLOAK_CLIENT_SECRET}
       KEYCLOAK_ISSUER: http://localhost:8080/realms/${KEYCLOAK_REALM:-malaria}
+      KEYCLOAK_ISSUER_INTERNAL: http://keycloak:8080/realms/${KEYCLOAK_REALM:-malaria}
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -151,6 +153,9 @@ services:
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET: ${MINIO_BUCKET:-genomics-data}
       MINIO_SECURE: "false"
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-malaria}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-malaria-api}
       SECRET_KEY: ${SECRET_KEY}
       PIPELINE_STAGING_DIR: /staging
     volumes:
@@ -174,7 +179,16 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/1
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET:-genomics-data}
+      MINIO_SECURE: "false"
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-malaria}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-malaria-api}
       SECRET_KEY: ${SECRET_KEY}
+      PIPELINE_STAGING_DIR: /staging
     volumes:
       - ./backend:/app
     depends_on:
@@ -192,8 +206,22 @@ services:
       --port=5555
       --basic_auth=${FLOWER_USER:-admin}:${FLOWER_PASSWORD}
     environment:
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-malaria}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-malaria_genomics}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/1
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET:-genomics-data}
+      MINIO_SECURE: "false"
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-malaria}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-malaria-api}
+      SECRET_KEY: ${SECRET_KEY}
+      PIPELINE_STAGING_DIR: /staging
+    volumes:
+      - ./backend:/app
     ports:
       - "5555:5555"
     depends_on:
