@@ -1,7 +1,7 @@
 # Web framework
-fastapi==0.115.6
+fastapi==0.128.8
 uvicorn[standard]==0.32.1
-python-multipart==0.0.20
+python-multipart==0.0.32
 
 # Database
 sqlalchemy[asyncio]==2.0.36
@@ -14,7 +14,9 @@ pydantic-settings==2.7.0
 email-validator==2.2.0
 
 # Auth (JWT validation from Keycloak)
-python-jose[cryptography]==3.3.0
+# NOTE: python-jose pulls in ecdsa, which has an unfixed advisory (PYSEC-2026-1325).
+# Not reachable — we only verify RS256, never sign / never use EC keys. See SECURITY.md.
+python-jose[cryptography]==3.5.0
 httpx==0.28.1
 
 # Rate limiting
@@ -29,5 +31,9 @@ flower==2.0.1
 minio==7.2.12
 
 # Utilities
-python-dotenv==1.0.1
+python-dotenv==1.2.2
 gunicorn==23.0.0
+
+# Transitive pins (known CVEs in older resolved versions)
+click==8.4.2
+urllib3==2.7.0

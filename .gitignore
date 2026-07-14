@@ -98,3 +98,6 @@ celerybeat-schedule.*
 # Claude Code
 .claude/
 claude/
+
+# Stray local venvs / scratch
+tmp/
