@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import json
 import uuid
 from typing import Annotated
 
 import httpx
+import jwt
 from fastapi import Depends, Header, HTTPException, status
-from jose import JWTError, jwt
+from jwt.algorithms import RSAAlgorithm
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,14 +17,46 @@ from app.database import get_db
 _jwks_cache: dict | None = None
 
 
-async def _get_jwks() -> dict:
+async def _get_jwks(force_refresh: bool = False) -> dict:
     global _jwks_cache
-    if _jwks_cache is None:
+    if _jwks_cache is None or force_refresh:
         async with httpx.AsyncClient() as client:
             resp = await client.get(settings.keycloak_jwks_uri, timeout=10)
             resp.raise_for_status()
             _jwks_cache = resp.json()
     return _jwks_cache
+
+
+def _find_jwk(jwks: dict, kid: str | None) -> dict | None:
+    for key in jwks.get("keys", []):
+        if key.get("kid") == kid:
+            return key
+    return None
+
+
+async def _get_signing_key(token: str):
+    """Return the RSA public key matching the token's kid.
+
+    Refreshes the JWKS cache once on a miss, so signing-key rotation in Keycloak
+    is handled without a restart.
+    """
+    try:
+        kid = jwt.get_unverified_header(token).get("kid")
+    except jwt.PyJWTError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid token header: {exc}",
+        ) from exc
+
+    jwk = _find_jwk(await _get_jwks(), kid)
+    if jwk is None:
+        jwk = _find_jwk(await _get_jwks(force_refresh=True), kid)
+    if jwk is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No matching signing key for token",
+        )
+    return RSAAlgorithm.from_jwk(json.dumps(jwk))
 
 
 class TokenPayload:
@@ -64,17 +98,17 @@ async def get_current_token(
 
     token = authorization.removeprefix("Bearer ")
 
+    public_key = await _get_signing_key(token)
     try:
-        jwks = await _get_jwks()
         payload = jwt.decode(
             token,
-            jwks,
+            public_key,
             algorithms=["RS256"],
             audience=settings.KEYCLOAK_CLIENT_ID,
             issuer=settings.keycloak_issuer,
             options={"verify_exp": True},
         )
-    except JWTError as exc:
+    except jwt.PyJWTError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid token: {exc}",

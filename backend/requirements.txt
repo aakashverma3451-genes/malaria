@@ -1,5 +1,7 @@
 # Web framework
-fastapi==0.128.8
+# fastapi >=0.135 drops the starlette<1.0 cap, letting starlette resolve to a
+# version that patches the 2026 BadHost / form-DoS advisories.
+fastapi==0.139.0
 uvicorn[standard]==0.32.1
 python-multipart==0.0.32
 
@@ -14,9 +16,9 @@ pydantic-settings==2.7.0
 email-validator==2.2.0
 
 # Auth (JWT validation from Keycloak)
-# NOTE: python-jose pulls in ecdsa, which has an unfixed advisory (PYSEC-2026-1325).
-# Not reachable — we only verify RS256, never sign / never use EC keys. See SECURITY.md.
-python-jose[cryptography]==3.5.0
+# PyJWT instead of python-jose: no ecdsa dependency (avoids the unfixable
+# PYSEC-2026-1325 Minerva advisory), and actively maintained.
+PyJWT[crypto]==2.13.0
 httpx==0.28.1
 
 # Rate limiting

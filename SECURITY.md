@@ -2,11 +2,12 @@
 
 ## Dependency audit status
 
-Frontend (`npm audit`): **0 vulnerabilities**.
+Both audits are **clean** as of the latest commit:
 
-Backend (`pip-audit -r backend/requirements.txt`): **2 packages with known advisories that have no reachable code path in this application** (see below). Everything with an available fix has been upgraded.
+- Frontend (`npm audit`): **0 vulnerabilities**
+- Backend (`pip-audit -r backend/requirements.txt`): **No known vulnerabilities found**
 
-To re-run the audits:
+To re-run:
 
 ```bash
 # frontend
@@ -18,34 +19,30 @@ python3.11 -m venv /tmp/pip-audit-venv
 /tmp/pip-audit-venv/bin/pip-audit -r backend/requirements.txt
 ```
 
-## Known dormant advisories (accepted, tracked)
+## Notable hardening decisions
 
-These have **no upstream fix available for our version constraints** and are **not reachable** by the current codebase. Each entry lists the exact trigger that would make it live — re-audit if that condition is ever introduced.
+### JWT library: PyJWT, not python-jose
 
-### `ecdsa` 0.19.2 — PYSEC-2026-1325 (Minerva timing attack)
+Auth token validation (`backend/app/dependencies.py`) uses **PyJWT**, not `python-jose`.
+`python-jose` transitively depends on `ecdsa`, which carries an **unfixable** advisory
+(PYSEC-2026-1325, the "Minerva" timing side-channel — the `ecdsa` maintainers have
+stated a pure-Python library cannot guarantee constant-time execution and will not
+fix it). PyJWT depends only on `cryptography`, so switching removed `ecdsa` from the
+dependency tree entirely. PyJWT is also the more actively maintained choice for
+verifying third-party OIDC tokens.
 
-- **What:** Timing side-channel during ECDSA **signing** (`sign_digest`) can leak the private nonce, potentially recovering the private key.
-- **Why not fixable:** Pulled in transitively by `python-jose`. The `ecdsa` maintainers have stated they will **not** fix this — a pure-Python library cannot guarantee constant-time execution. `python-jose` still depends on it.
-- **Why not reachable:** We only **verify** RS256 (RSA) signatures from Keycloak in `backend/app/dependencies.py`. We never sign anything, and never use ECDSA keys. Signing is done by Keycloak, in a separate process, not by this Python code.
-- **Trigger to re-audit:** if this service ever starts *issuing* JWTs itself, or signing with EC keys.
-- **Permanent fix (deferred):** migrate JWT verification from `python-jose` to `PyJWT`, which does not depend on `ecdsa`. Deferred because it touches the auth-critical `dependencies.py` and warrants careful end-to-end testing rather than a rushed swap.
+We verify RS256 signatures against Keycloak's JWKS (fetched and cached, refreshed
+once on a `kid` miss to survive Keycloak signing-key rotation). Validation is tested
+for both acceptance (valid token → 200) and rejection (malformed and tampered-signature
+tokens → 401).
 
-### `starlette` 0.52.1 — PYSEC-2026-161 / -248 / -249 / -2280 / -2281 (6 advisories)
+### FastAPI / Starlette version floor
 
-- **What (the ones that matter):**
-  - `request.form()` DoS on `application/x-www-form-urlencoded` bodies (unbounded fields/memory).
-  - "BadHost" — unvalidated `Host` header poisons `request.url.path` / `.hostname`, can bypass path-based checks.
-  - Arbitrary HTTP method dispatch via `HTTPEndpoint` + `getattr`.
-  - `FileResponse` Range-header O(n²) DoS.
-  - `StaticFiles` UNC-path SSRF (Windows only).
-- **Why not fixable now:** the fixes require `starlette >= 1.x`, but the **latest FastAPI release still pins `starlette < 1.0.0`**. No FastAPI version currently reaches the fixed starlette line. This resolves itself when FastAPI adopts starlette 1.x upstream — bump both together then.
-- **Why not reachable:** verified by grep over `backend/app/` — this codebase uses **none** of the vulnerable surfaces:
-  - No `request.form()` / `UploadFile` — file uploads go directly to MinIO via presigned URLs, never through the API.
-  - No `FileResponse` — downloads are also presigned MinIO URLs.
-  - No raw `HTTPEndpoint` — routing is exclusively FastAPI `APIRouter`.
-  - No `request.url.hostname` / `.path` trust — CORS uses a static `allow_origins` list; auth reads only the `Authorization` header.
-  - Linux-only Docker deployment — the Windows `StaticFiles` UNC issue cannot apply.
-- **Trigger to re-audit:** adding any `UploadFile`/`request.form()` endpoint, using `FileResponse`, mounting `StaticFiles`, or introducing Host-header-dependent logic. **In particular, the Stage 4 file-upload work should re-check the `request.form()` DoS** before shipping.
+`fastapi>=0.135` dropped the old `starlette<1.0.0` cap. We pin `fastapi==0.139.0` so
+`starlette` resolves to `1.3.1`, which patches the 2026 Starlette advisories
+(BadHost host-header path poisoning, `request.form()` DoS, `FileResponse` Range DoS,
+etc.). Earlier FastAPI releases capped Starlette below the patched line — do not pin
+FastAPI back under 0.135 without re-checking `pip-audit`.
 
 ## Reminder for production (from the Stage 10 gate)
 
