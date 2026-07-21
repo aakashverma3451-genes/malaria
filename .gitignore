@@ -101,3 +101,9 @@ claude/
 
 # Stray local venvs / scratch
 tmp/
+
+# Stage 3 genomics artifacts (all reproducible via docs/stage3-tool-validation.md)
+*.gff
+*.gff3
+test-data/validation-out/
+test-data/snpeff-data/
